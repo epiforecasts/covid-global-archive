@@ -38,7 +38,7 @@ EpiNow::regional_rt_pipeline(
   cases = cases,
   linelist = linelist,
   target_folder = "national",
-  case_limit = 100,
+  case_limit = 60,
   horizon = 0
 )
 
