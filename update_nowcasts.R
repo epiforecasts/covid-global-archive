@@ -20,7 +20,8 @@ cases <- NCoVUtils::get_ecdc_cases() %>%
 cases <- cases %>%
   dplyr::rename(local = cases) %>%
   dplyr::mutate(imported = 0) %>%
-  tidyr::gather(key = "import_status", value = "cases", local, imported)
+  tidyr::gather(key = "import_status", value = "cases", local, imported) %>% 
+  tidyr::drop_na(region)
 
 # Get linelist ------------------------------------------------------------
 
