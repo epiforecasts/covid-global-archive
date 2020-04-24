@@ -7,6 +7,11 @@ require(future)
 require(dplyr)
 require(tidyr)
 require(magrittr)
+require(future.apply)
+require(fable)
+require(fabletools)
+require(feasts)
+require(urca)
 
 
 
@@ -40,7 +45,14 @@ EpiNow::regional_rt_pipeline(
   linelist = linelist,
   target_folder = "national",
   case_limit = 60,
-  horizon = 0
+  horizon = 14,
+  report_forecast = TRUE,
+  forecast_model = function(...) {
+    EpiSoon::fable_model(model = fabletools::combination_model(fable::RW(y ~ drift()), fable::ETS(y), 
+                                                               fable::NAIVE(y),
+                                                               cmbn_args = list(weights = "inv_var")), ...)
+  },
+  samples = 10
 )
 
 
@@ -49,15 +61,8 @@ EpiNow::regional_rt_pipeline(
 EpiNow::regional_summary(results_dir = "national",
                          summary_dir = "national-summary",
                          target_date = "latest",
-                         region_scale = "Country/Region")
+                         region_scale = "Country/Region",
+                         csv_region_label = "country",
+                         log_cases = TRUE)
 
 
-
-# Save summary csv --------------------------------------------------------
-
-source(here::here("../../utils/save_summary_csv.R"))
-
-
-save_summary_csv(results_dir = "national",
-                 summary_dir = "national-summary",
-                 type = "country")
