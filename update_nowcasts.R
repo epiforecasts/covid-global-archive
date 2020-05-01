@@ -22,6 +22,18 @@ NCoVUtils::reset_cache()
 cases <- NCoVUtils::get_ecdc_cases() %>%
   NCoVUtils::format_ecdc_data()
 
+
+## Arrange to run countries with most cases first
+total_cases_order <- cases %>% 
+  dplyr::count(region, wt = cases) %>% 
+  dplyr::arrange(desc(n)) %>% 
+  dplyr::mutate(n = 1:dplyr::n())
+
+cases <- cases %>% 
+  dplyr::left_join(total_cases_order, by = "region") %>% 
+  dplyr::arrange(n, date) %>% 
+  dplyr::select(-n)
+
 cases <- cases %>%
   dplyr::rename(local = cases) %>%
   dplyr::mutate(imported = 0) %>%
@@ -34,8 +46,17 @@ cases <- cases %>%
 linelist <-  NCoVUtils::get_international_linelist() 
 
 # Set up cores -----------------------------------------------------
+if (!interactive()){
+  options(future.fork.enable = TRUE)
+}
 
-future::plan("multiprocess", workers = future::availableCores())
+## Allocating cores per parallel process helps with RAM requirements 
+## and speeds up long running regions.
+cores_per_job <- 1
+jobs <- round(future::availableCores() / cores_per_job)
+
+plan(list(tweak(multisession, workers = jobs),
+          tweak(multisession, workers = cores_per_job)))
 
 data.table::setDTthreads(threads = 1)
 
