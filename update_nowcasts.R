@@ -12,7 +12,7 @@ require(fable, quietly = TRUE)
 require(fabletools, quietly = TRUE)
 require(feasts, quietly = TRUE)
 require(urca, quietly = TRUE)
-
+require(purrr, quietly = TRUE)
 
 
 # Get cases ---------------------------------------------------------------
@@ -55,8 +55,8 @@ if (!interactive()){
 cores_per_job <- 1
 jobs <- round(future::availableCores() / cores_per_job)
 
-plan(list(tweak(multisession, workers = jobs),
-          tweak(multisession, workers = cores_per_job)))
+plan(list(tweak(multiprocess, workers = jobs),
+          tweak(multiprocess, workers = cores_per_job)))
 
 data.table::setDTthreads(threads = 1)
 
@@ -68,6 +68,7 @@ EpiNow::regional_rt_pipeline(
   target_folder = "national",
   case_limit = 60,
   horizon = 14,
+  approx_delay = TRUE,
   report_forecast = TRUE,
   forecast_model = function(...) {
     EpiSoon::fable_model(model = fabletools::combination_model(fable::RW(y ~ drift()), fable::ETS(y), 
