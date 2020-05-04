@@ -39,11 +39,12 @@ cases <- cases %>%
   dplyr::mutate(imported = 0) %>%
   tidyr::gather(key = "import_status", value = "cases", local, imported) %>% 
   tidyr::drop_na(region) %>% 
-  dplyr::filter(!region %in% "Faroe Islands")
+  dplyr::filter(!region %in% "Faroe Islands") 
 
 # Get linelist ------------------------------------------------------------
 
-linelist <-  NCoVUtils::get_international_linelist() 
+linelist <-  NCoVUtils::get_international_linelist() %>% 
+  tidyr::drop_na(date_onset)
 
 # Set up cores -----------------------------------------------------
 if (!interactive()){
@@ -56,9 +57,9 @@ cores_per_job <- 1
 jobs <- round(future::availableCores() / cores_per_job)
 
 plan(list(tweak(multiprocess, workers = jobs),
-          tweak(multiprocess, workers = cores_per_job)))
+          tweak(multiprocess, workers = cores_per_job)), gc = TRUE)
 
-data.table::setDTthreads(threads = 1)
+data.table::setDTthreads(threads = cores_per_job)
 
 # Run pipeline ----------------------------------------------------
 
@@ -69,7 +70,7 @@ EpiNow::regional_rt_pipeline(
   case_limit = 60,
   horizon = 14,
   approx_delay = TRUE,
-  report_forecast = TRUE,
+  report_forecast = TRUE, 
   forecast_model = function(...) {
     EpiSoon::fable_model(model = fabletools::combination_model(fable::RW(y ~ drift()), fable::ETS(y), 
                                                                fable::NAIVE(y),
