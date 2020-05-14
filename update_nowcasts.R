@@ -1,74 +1,92 @@
 
 # Packages -----------------------------------------------------------------
-require(EpiNow, quietly = TRUE)
-require(NCoVUtils, quietly = TRUE)
-require(furrr, quietly = TRUE)
+require(data.table, quietly = TRUE) 
 require(future, quietly = TRUE)
-require(dplyr, quietly = TRUE)
-require(tidyr, quietly = TRUE)
-require(magrittr, quietly = TRUE)
-require(future.apply, quietly = TRUE)
-require(fable, quietly = TRUE)
-require(fabletools, quietly = TRUE)
-require(feasts, quietly = TRUE)
-require(urca, quietly = TRUE)
-require(purrr, quietly = TRUE)
+## Require for data and nowcasting
+# require(EpiNow, quietly = TRUE)
+# require(NCoVUtils, quietly = TRUE)
 
+## Required for forecasting
+# require(future.apply, quietly = TRUE)
+# require(fable, quietly = TRUE)
+# require(fabletools, quietly = TRUE)
+# require(feasts, quietly = TRUE)
+# require(urca, quietly = TRUE)
 
 # Get cases ---------------------------------------------------------------
 
 NCoVUtils::reset_cache()
 
-cases <- NCoVUtils::get_ecdc_cases() %>%
-  NCoVUtils::format_ecdc_data()
+cases <- NCoVUtils::get_ecdc_cases()
+cases <-  NCoVUtils::format_ecdc_data(cases) 
+ 
 
+cases <- data.table::setDT(cases)[!is.na(region)][, 
+            `:=`(local = cases, imported = 0)][, cases := NULL]
 
-## Arrange to run countries with most cases first
-total_cases_order <- cases %>% 
-  dplyr::count(region, wt = cases) %>% 
-  dplyr::arrange(desc(n)) %>% 
-  dplyr::mutate(n = 1:dplyr::n())
+cases <- data.table::melt(cases, measure.vars = c("local", "imported"),
+                          variable.name = "import_status",
+                          value.name = "confirm")
 
-cases <- cases %>% 
-  dplyr::left_join(total_cases_order, by = "region") %>% 
-  dplyr::arrange(n, date) %>% 
-  dplyr::select(-n)
-
-cases <- cases %>%
-  dplyr::rename(local = cases) %>%
-  dplyr::mutate(imported = 0) %>%
-  tidyr::gather(key = "import_status", value = "cases", local, imported) %>% 
-  tidyr::drop_na(region) %>% 
-  dplyr::filter(!region %in% "Faroe Islands") 
+## Remove regions with data issues
+cases <- cases[!region %in% c("Faroe Islands", "Sao Tome and Principe", "Tajikistan")]
 
 # Get linelist ------------------------------------------------------------
 
-linelist <-  NCoVUtils::get_international_linelist() %>% 
-  tidyr::drop_na(date_onset)
+linelist <- 
+  data.table::fread("https://raw.githubusercontent.com/epiforecasts/NCoVUtils/master/data-raw/linelist.csv")
+
+
+delays <- linelist[!is.na(date_onset_symptoms)][, 
+                   .(report_delay = as.numeric(lubridate::dmy(date_confirmation) - 
+                                                 as.Date(lubridate::dmy(date_onset_symptoms))))]
+
+delays <- delays$report_delay
 
 # Set up cores -----------------------------------------------------
 if (!interactive()){
   options(future.fork.enable = TRUE)
 }
 
-## Allocating cores per parallel process helps with RAM requirements 
-## and speeds up long running regions.
-cores_per_job <- 1
-jobs <- round(future::availableCores() / cores_per_job)
+future::plan("multiprocess", gc = TRUE, earlySignal = TRUE)
 
-plan(list(tweak(multiprocess, workers = jobs),
-          tweak(multiprocess, workers = cores_per_job)), gc = TRUE)
+# Fit the reporting delay -------------------------------------------------
 
-data.table::setDTthreads(threads = cores_per_job)
+delay_defs <- EpiNow::get_dist_def(delays,
+                                    bootstraps = 100, 
+                                    samples = 1000)
+
+# Fit the incubation period -----------------------------------------------
+
+## Mean delay
+exp(EpiNow::covid_incubation_period[1, ]$mean)
+
+## Get incubation defs
+incubation_defs <- EpiNow::lognorm_dist_def(mean = EpiNow::covid_incubation_period[1, ]$mean,
+                                            mean_sd = EpiNow::covid_incubation_period[1, ]$mean_sd,
+                                            sd = EpiNow::covid_incubation_period[1, ]$sd,
+                                            sd_sd = EpiNow::covid_incubation_period[1, ]$sd_sd,
+                                            max_value = 30, samples = 1000)
+
+
+# Run regions nested ------------------------------------------------------
+
+cores_per_region <- 1
+future::plan(list(tweak("multiprocess", 
+                        workers = floor(future::availableCores() / cores_per_region)),
+                  tweak("multiprocess", workers = cores_per_region)),
+                  gc = TRUE, earlySignal = TRUE)
 
 # Run pipeline ----------------------------------------------------
 
 EpiNow::regional_rt_pipeline(
   cases = cases,
-  linelist = linelist,
+  delay_defs = delay_defs,
+  incubation_defs = incubation_defs,
   target_folder = "national",
   case_limit = 60,
   horizon = 14,
+  nowcast_lag = 8,
   approx_delay = TRUE,
   report_forecast = TRUE, 
   forecast_model = function(...) {
@@ -79,12 +97,14 @@ EpiNow::regional_rt_pipeline(
 )
 
 
+future::plan("sequential")
+
 # Summarise results -------------------------------------------------------
 
 EpiNow::regional_summary(results_dir = "national",
                          summary_dir = "national-summary",
                          target_date = "latest",
-                         region_scale = "Country/Region",
+                         region_scale = "Country",
                          csv_region_label = "country",
                          log_cases = TRUE)
 
