@@ -2,6 +2,7 @@
 # Packages -----------------------------------------------------------------
 require(data.table, quietly = TRUE) 
 require(future, quietly = TRUE)
+require(forecastHybrid, quietly = TRUE)
 ## Require for data and nowcasting
 # require(EpiNow, quietly = TRUE)
 # require(NCoVUtils, quietly = TRUE)
@@ -84,11 +85,9 @@ EpiNow::regional_rt_pipeline(
   nowcast_lag = 9,
   approx_delay = TRUE,
   report_forecast = TRUE, 
-  forecast_model = function(...) {
-    EpiSoon::fable_model(model = fabletools::combination_model(fable::RW(y ~ drift()), fable::ETS(y), 
-                                                               fable::NAIVE(y),
-                                                               cmbn_args = list(weights = "inv_var")), ...)
-  }
+  forecast_model = function(...){EpiSoon::forecastHybrid_model(
+    model_params = list(models = "aeftz", weights = "equal"),
+    forecast_params = list(PI.combination = "mean"), ...)}
 )
 
 
