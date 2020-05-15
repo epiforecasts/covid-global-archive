@@ -7,20 +7,15 @@ require(future, quietly = TRUE)
 # require(NCoVUtils, quietly = TRUE)
 
 ## Required for forecasting
-# require(future.apply, quietly = TRUE)
-# require(fable, quietly = TRUE)
-# require(fabletools, quietly = TRUE)
-# require(feasts, quietly = TRUE)
-# require(urca, quietly = TRUE)
+# require(forecastHybrid, quietly = TRUE)
 
 # Get cases ---------------------------------------------------------------
 
 NCoVUtils::reset_cache()
 
 cases <- NCoVUtils::get_ecdc_cases()
-cases <-  NCoVUtils::format_ecdc_data(cases) 
- 
 
+cases <-  NCoVUtils::format_ecdc_data(cases) 
 cases <- data.table::setDT(cases)[!is.na(region)][, 
             `:=`(local = cases, imported = 0)][, cases := NULL]
 
@@ -86,7 +81,7 @@ EpiNow::regional_rt_pipeline(
   target_folder = "national",
   case_limit = 60,
   horizon = 14,
-  nowcast_lag = 8,
+  nowcast_lag = 9,
   approx_delay = TRUE,
   report_forecast = TRUE, 
   forecast_model = function(...) {
