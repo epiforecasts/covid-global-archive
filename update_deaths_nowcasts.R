@@ -53,10 +53,6 @@ cores_per_region <- 4
 future::plan(list(future::tweak("multiprocess", workers = round(future::availableCores() / cores_per_region)),
                   future::tweak("multiprocess", workers = cores_per_region)), gc = TRUE, earlySignal = TRUE)
 
-# Run regions nested ------------------------------------------------------
-
-future::plan("multiprocess", gc = TRUE, earlySignal = TRUE)
-
 # Run pipeline ----------------------------------------------------
 
 EpiNow::regional_rt_pipeline(
