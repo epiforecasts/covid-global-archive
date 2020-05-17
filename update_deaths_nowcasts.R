@@ -49,7 +49,7 @@ if (!interactive()){
   options(future.fork.enable = TRUE)
 }
 
-cores_per_region <- 4
+cores_per_region <- 2
 future::plan(list(future::tweak("multiprocess", workers = round(future::availableCores() / cores_per_region)),
                   future::tweak("multiprocess", workers = cores_per_region)), gc = TRUE, earlySignal = TRUE)
 
@@ -66,10 +66,10 @@ EpiNow::regional_rt_pipeline(
   nowcast_lag = 9 + 5, # Delay from death -> onset + onset -> infection
   approx_delay = TRUE,
   report_forecast = TRUE, 
-  forecast_model = function(...){EpiSoon::forecastHybrid_model(
-          model_params = list(models = "aeftz", weights = "equal",
-                              t.args = list(use.parallel = FALSE)),
-          forecast_params = list(PI.combination = "mean"), ...)}
+  forecast_model = function(y, ...){EpiSoon::forecastHybrid_model(
+    y = y[max(1, length(y) - 21):length(y)],
+    model_params = list(models = "aefz", weights = "equal"),
+    forecast_params = list(PI.combination = "mean"), ...)}
 )
 
 future::plan("sequential")
