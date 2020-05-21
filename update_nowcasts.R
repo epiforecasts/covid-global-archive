@@ -44,7 +44,7 @@ if (!interactive()){
   options(future.fork.enable = TRUE)
 }
 
-future::plan("multiprocess", gc = TRUE, earlySignal = TRUE)
+future::plan("multiprocess", gc = TRUE, earlySignal = TRUE, workers = 60)
 
 # Fit the reporting delay -------------------------------------------------
 
