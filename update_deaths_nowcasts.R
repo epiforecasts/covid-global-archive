@@ -49,7 +49,7 @@ if (!interactive()){
   options(future.fork.enable = TRUE)
 }
 
-cores_per_region <- 2
+cores_per_region <- 1
 future::plan(list(future::tweak("multiprocess", workers = round(future::availableCores() / cores_per_region)),
                   future::tweak("multiprocess", workers = cores_per_region)), gc = TRUE, earlySignal = TRUE)
 

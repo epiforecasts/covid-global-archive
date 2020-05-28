@@ -25,7 +25,8 @@ cases <- data.table::melt(cases, measure.vars = c("local", "imported"),
                           value.name = "confirm")
 
 ## Remove regions with data issues
-cases <- cases[!region %in% c("Faroe Islands", "Sao Tome and Principe", "Tajikistan")]
+cases <- cases[!region %in% c("Faroe Islands", "Sao Tome and Principe", "Nicaragua")]
+
 
 # Get linelist ------------------------------------------------------------
 
