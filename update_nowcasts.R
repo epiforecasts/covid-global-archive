@@ -83,7 +83,7 @@ EpiNow::regional_rt_pipeline(
   target_folder = "national",
   case_limit = 60,
   horizon = 14,
-  nowcast_lag = 9,
+  nowcast_lag = 10,
   approx_delay = TRUE,
   report_forecast = TRUE, 
   forecast_model = function(y, ...){EpiSoon::forecastHybrid_model(
